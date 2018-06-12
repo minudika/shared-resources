@@ -1,0 +1,10 @@
+@App:name('sinktest')
+
+define stream inputStream(fromAddress string, toAddress string, sub string, emailBody string);
+
+@sink(type='http', publisher.url='http://localhost:8050/formService/simpleFormWithFormParam', method='POST', encode='true', headers="'content-type:application/x-www-form-urlencoded','X-custom-header:custom-header'", @map(type='keyvalue', @payload(from='sender', to='receiver', subject='subject', text='body')))
+define stream outputStream(sender string, receiver string, subject string, body string);
+
+from inputStream
+select fromAddress as sender, toAddress as receiver, sub as subject, emailBody as body
+insert into outputStream;
