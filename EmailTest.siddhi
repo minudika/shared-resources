@@ -1,0 +1,6 @@
+@App:name("EmailTest") 
+@sink(type='email', subject='Alerts from Wso2 Stream Processor', to='{{email}}',
+attachments='{{attachments}}',
+@map(type ='json', @payload('Hello {{name}}, {{message}}')))  
+define stream fooStream ( email string, message string, name string, attachments string);  
+ 
