@@ -4,6 +4,13 @@
 This feature allows to send HTTP request using HTTP sink and receive the response for that request uing a HTTP source and generate an event out of it.
 In order to use this feature, you have to use the sink of type 'http-request' and a source of type 'http-response'.
 
+### Instructions
+In order to apply the newly added changes into WSO2 Stream Processor 4.1.0, please follow the steps given below.
+ 1. Shutdown  the server.
+ 2.  Download **siddhi-core_4.1.7.jar** from this repository and replace the existing **siddhi-core_4.1.7.jar** in **WSO2SP-4.1.0**.  You can find it in **<SP_HOME>/wso2/lib/plugins** directory.
+ 3. Download **siddhi-io-http-1.0.18.jar** from this repository and replace the existing **siddhi-io-http-1.0.18.jar** in **WSO2SP-4.1.0**, which is located in **<SP_HOME>/lib** directory.
+ 4. Restart the server,
+
 ### Syntax
 
 #### HTTP-Request Sink
