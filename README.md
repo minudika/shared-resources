@@ -60,7 +60,7 @@ The server will send a response like following and it will be received by http-r
 	"event":
 	{
 		"name":"wso2", 
-		"id", 1234
+		"id": 1234
 	}
 }
 ```
