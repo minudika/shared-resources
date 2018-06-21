@@ -2,13 +2,13 @@
 
 define stream FooStream (payload String, headers String);
 
-@sink(type='http-request', publisher.url='http://localhost:8080/hello/message',
+@sink(type='http-request', publisher.url='http://localhost:8080/company/',
 method='POST', connection.timout='1000', 
-headers='{{headers}}', sink.id='sink-1',
+headers='{{headers}}', sink.id='reg-company',
 @map(type='json', @payload('{{payload}}')))
 define stream BarStream (payload String, headers String);
 
-@source(type='http-response' , sink.id='sink-1',
+@source(type='http-response' , sink.id='reg-company',
 @map(type='json')) 
 define stream responseStream(name string, id int);
 
