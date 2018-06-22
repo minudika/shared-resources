@@ -1,7 +1,8 @@
 
+
 # Siddhi HTTP IO : Request-Response
 
-This feature allows to send HTTP request using HTTP sink and receive the response for that request uing a HTTP source and generate an event out of it.
+This feature allows users to send HTTP request using HTTP sink and receive the response for that request using an HTTP source and generate an event out of it.
 In order to use this feature, you have to use the sink of type 'http-request' and a source of type 'http-response'.
 
 ### Instructions
@@ -9,7 +10,7 @@ In order to apply the newly added changes into WSO2 Stream Processor 4.1.0, plea
  1. Shutdown  the server.
  2.  Download **siddhi-core_4.1.7.jar** from this repository and replace the existing **siddhi-core_4.1.7.jar** in **WSO2SP-4.1.0**.  You can find it in **<SP_HOME>/wso2/lib/plugins** directory.
  3. Download **siddhi-io-http-1.0.18.jar** from this repository and replace the existing **siddhi-io-http-1.0.18.jar** in **WSO2SP-4.1.0**, which is located in **<SP_HOME>/lib** directory.
- 4. Restart the server,
+ 4. Restart the server.
 
 ### Syntax
 
@@ -28,7 +29,7 @@ headers="<STRING>", method="<STRING>",
 
 #### HTTP-Response Source
 Http-response source captures the responses for the request sent by the http-request sink which has the same sink.id.
-You have to provide a sink.id when defining a http-response source, and there should be a http-request sink  with the same sink.id in the siddhi app.
+You have to provide a sink.id when defining an http-response source, and there should be an http-request sink  with the same sink.id in the siddhi app.
 
 ```sql
 @source(type="http-response", sink.id='<SINK_ID>', 
@@ -67,4 +68,5 @@ The server will send a response like following and it will be received by http-r
 
 Then it will be mapped to the attributes of **responseStream** using JSON default mapping.
 
+Please find a complete sample siddhi app [here](https://github.com/minudika/shared-resources/blob/request-response/RequestResponseSample.siddhi).
 
