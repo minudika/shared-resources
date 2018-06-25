@@ -76,3 +76,5 @@ The server will send a response and the request is successful,  file will be dow
 If the file is not found, the error message  will be received to the stream of http-response source with the http.status.code **4**** in  text format.
 
 Text mapper has been configured to map the response messages correctly.
+
+You can find a complete sample siddhi app [here](https://github.com/minudika/shared-resources/blob/file-download/DownloadFile.siddhi).
