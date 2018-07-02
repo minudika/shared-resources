@@ -1,21 +1,15 @@
-# Siddhi : Support for multi-threading
-This enables **configurable multi threading** in siddhi.
-
-## Syntax
-
- Adding number of workers and maximum event batch size for processing.
-
-```sql
-@async(buffer.size='16', workers='2', batch.size.max='5')
-define stream AStream (...);
-```
-If '**workers**' is not defined it will be defaulted to **1** and thedefault of '**batch.size.max**' is '**buffer.size**'.
-
-
+# DEMO
+ 
 ## Instructions
-In order to apply the newly added changes into WSO2 Stream Processor 4.1.0, please follow the steps given below.
+Please note that these artifacts are working with WSO2SP-4.2.0.  Therefore please use a 4.2.0 pack in order to run this demo.
+
+In order to apply the newly added changes into WSO2 Stream Processor 4.2.0,   follow the steps given below.
  1. Shutdown  the server.
- 2.  Download **siddhi-core_4.1.7.jar** from this repository and replace the existing **siddhi-core_4.1.7.jar** in **WSO2SP-4.1.0**.  You can find it in **<SP_HOME>/wso2/lib/plugins** directory.
- 3. Restart the server.
+ 2. Download all the jars given in the **lib** directory and replace the existing ones in **<SP_HOME>/lib** directory with them.
+ 3. Download all the jars given in the **plugins** directory and replace the existing ones in **<SP_HOME>/wso2/lib/plugins** directory with them.
+ 4.  Add the bundle .jar of the relavent DB driver to the  **<SP_HOME>/lib directory**.
+ 5. Make sure the relavent data sources which are used in the siddhi app, have been defined in the deployment.yaml.
+ 6. Restart the server.
+
 
 
