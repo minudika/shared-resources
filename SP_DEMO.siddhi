@@ -59,7 +59,7 @@ from SqlQueryStream#rdbms:query('ALERTS', query, 'ALERT_ID string, USER_ID int, 
 insert into RecordStream; 
 
 -- Select necessary attributes from the retrieved records
-from RecordStream#window.lengthBatch(1)
+from RecordStream 
 select ALERT_ID as alertId, USER_ID as userId , USER_NAME as userName, TEMPLATE as template, USER_EMAIL as userEmail 
 insert into CastingStream; 
 
