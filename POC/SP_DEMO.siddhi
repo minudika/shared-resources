@@ -1,0 +1,102 @@
+@App:name("SP_DEMO")
+
+-- This stream is to receive the input alertId
+define stream InputStream(alertId string);
+
+-- This http-request sink calls to the microservice which gives the decison 
+-- whether an alert should be sent to the given user for given alert type.
+@sink(type='http-request', sink.id = 'check', publisher.url='http://localhost:8050/service/check',
+method='POST', 
+sink.id='check',
+@map(type='json', @payload("""{"alertId":"{{alertId}}","userId":"{{userId}}"}""")))
+define stream CheckForAlertRequestStream (alertId string, userId string, userName string, template string, userEmail string);
+
+-- This source captures the successful responses of the request sent from above http-request sink (sink.id = check)
+-- Response body will be a json 
+-- Reponse body is converted to an event using JSON source mapper
+@source(type='http-response' , sink.id='check', http.status.code='2**',
+@map(type='json', enclosing.element='$.event', @attributes(sendEmail='sendEmail', attachmentAvailable = 'attachmentAvailable', fileName='fileName', amount = 'amount', userId='trp:userId', template='trp:template', userEmail='trp:userEmail', userName='trp:userName'))) 
+define stream CheckForAlertResponseStream2xx(sendEmail bool, attachmentAvailable bool, fileName string, userId string, template string, userEmail string, userName string, amount string);
+
+-- This source captures the responses with 4xx status codes for the request which is sent by above http-request sink  (sink.id = check)
+@source(type='http-response' , sink.id='check', http.status.code='4**',
+@map(type='text', regex.A='((.|\n)*)', @attributes(errorMsg='A[1]'))) 
+define stream CheckForAlertResponseStream4xx(errorMsg string);
+
+-- This http-request sink handles downloading files from a given URL.
+-- The downloaded file will be saved to the location given for 'download.path'
+@sink(type='http-request', downloading.enabled='true', publisher.url='{{sourceFile}}', download.path='{{downloadPath}}',
+method='GET', sink.id='download-file',
+@map(type='json')) 
+define stream DownloadRequestStream (userName string, userEmail string, downloadPath String, sourceFile string, template string, amount string);
+
+-- This source captures the successful responses of the request sent from above http-request sink (sink.id = download-file)
+-- For successful responses the message body will be the path of downloaded file
+-- Text mapper has been configured to retrieve that file path from the response message.
+@source(type='http-response' , sink.id='download-file', http.status.code='2**',
+@map(type='text', regex.A='((.|\n)*)', @attributes(template='trp:template', userName='trp:userName', userEmail='trp:userEmail', amount='trp:amount', fileName='A[1]'))) 
+define stream DownlaodResponseStream2xx(fileName string, template string, userName string, userEmail string, amount string);
+
+-- This source captures the responses with 4xx status codes for the request which is sent by above http-request sink  (sink.id = download-file)
+@source(type='http-response' , sink.id='download-file', http.status.code='4**',
+@map(type='text', regex.A='((.|\n)*)', @attributes(headers='trp:headers', message='A[1]'))) 
+define stream DownloadResponseStream4xx(message string, headers string);
+ 
+-- This sink handles sending emails to a given email address.
+-- If there's any attachment has been provided, that wil be attached to the mail also.
+@sink(type='email', subject='Alerts from WSO2', to='{{email}}', content.type="text/html",
+attachments='{{attachments}}',
+@map(type ='text', @payload('{{message}}')))  
+define stream EmailStream ( email string, message string, name string, attachments string);  
+
+-- Query to generate the SQL query for joining tables with given alert ID
+from InputStream
+select str:concat("select ALERT_TBL.ALERT_ID, MAPPER_TBL.USER_ID, ALERT_TBL.TEMPLATE, USER_TBL.USER_NAME, USER_TBL.USER_EMAIL from ALERT_TBL join MAPPER_TBL on ALERT_TBL.ALERT_ID = MAPPER_TBL.ALERT_ID and ALERT_TBL.ALERT_ID = '", alertId, "' join USER_TBL on MAPPER_TBL.USER_ID = USER_TBL.USER_ID") as query
+insert into SqlQueryStream;
+
+-- Executes above generated SQL query on the given  'ALERTS' database and retrieves the relavent records
+from SqlQueryStream#rdbms:query('ALERTS', query, 'ALERT_ID string, USER_ID int, TEMPLATE string, USER_NAME string, USER_EMAIL string') 
+insert into RecordStream; 
+
+-- Select necessary attributes from the retrieved records
+from RecordStream#window.lengthBatch(1)
+select ALERT_ID as alertId, USER_ID as userId , USER_NAME as userName, TEMPLATE as template, USER_EMAIL as userEmail 
+insert into CastingStream; 
+
+-- Cast user id to a string
+from CastingStream
+select alertId, cast(userId, 'string') as userId, userName, template, userEmail 
+insert into CheckForAlertRequestStream;
+
+-- Filter the users to whom the alerts should be sent
+-- Provide the download directory for the attachments
+from CheckForAlertResponseStream2xx[sendEmail]--#log('checkResponseStream2xx')
+select ifThenElse(attachmentAvailable, fileName, "") as remotefilePath,  '/home/minudika/SHARE/downloaded/' as downloadPath, template, userEmail, userName, amount
+insert into RetrieveAttachmentsStream;
+
+-- Retrieve the file name of the attachment using a regex match
+from RetrieveAttachmentsStream
+select remotefilePath, regex:group('(?<=\/)([^\/]+)$', remotefilePath, 0) as downloadFileName, downloadPath, template, userEmail, userName, amount
+insert into DownloadPathStream;
+
+-- Create the file path for file which going to be downloaded.
+from DownloadPathStream
+select remotefilePath as fileName, str:concat(downloadPath , downloadFileName) as downloadPath, userEmail, userName, template, amount
+insert into AttachmentsStream;
+
+from AttachmentsStream[fileName != ""]
+select userName, userEmail, downloadPath, fileName as sourceFile, template, amount
+insert into DownloadRequestStream;
+
+-- Get the downloaded file names from the response for download request
+-- Select necessary message conents to componse the email
+from DownlaodResponseStream2xx
+select userEmail as email, template, userName as name, fileName as attachments, amount
+insert into EmailMsgTemplateStream;
+
+-- Compose the email body by replacing templated fields with the given values
+-- Send email using the above defined email sink
+from EmailMsgTemplateStream#log('EMAIL_MSG_TEMPLATE_STREAM')
+select email, str:selectAndReplace(template,  name, amount ) as message, name, attachments
+insert into EmailStream;
+
