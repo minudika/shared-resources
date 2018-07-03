@@ -1,5 +1,3 @@
-
-
 # Siddhi HTTP IO : Request-Response
 
 This feature allows users to send HTTP request using HTTP sink and receive the response for that request using an HTTP source and generate an event out of it.
@@ -10,10 +8,17 @@ For example, one source for 2xx status codes and another for 4xx ones.
 
 ### Instructions
 In order to apply the newly added changes into WSO2 Stream Processor 4.1.0, please follow the steps given below.
+
+#### For WSO2 SP  4.1.0 :
  1. Shutdown  the server.
- 2.  Download **siddhi-core_4.1.7.jar** from this repository and replace the existing **siddhi-core_4.1.7.jar** in **WSO2SP-4.1.0**.  You can find it in **<SP_HOME>/wso2/lib/plugins** directory.
- 3. Download **siddhi-io-http-1.0.18.jar** from this repository and replace the existing **siddhi-io-http-1.0.18.jar** in **WSO2SP-4.1.0**, which is located in **<SP_HOME>/lib** directory.
+ 2.  Download  [**sp-4.1.0-artifacts/siddhi-core_4.1.7.jar**](https://github.com/minudika/shared-resources/blob/request-response/sp-4.1.0-artifacts/siddhi-core_4.1.7.jar) from this repository and replace the existing **siddhi-core_4.1.7.jar** in **WSO2SP-4.1.0**.  You can find it in **<SP_HOME>/wso2/lib/plugins** directory.
+ 3. Download  [**sp-4.1.0-artifacts/siddhi-io-http-1.0.18.jar**](https://github.com/minudika/shared-resources/blob/request-response/sp-4.1.0-artifacts/siddhi-io-http-1.0.18.jar)  from this repository and replace the existing **siddhi-io-http-1.0.18.jar** in **WSO2SP-4.1.0**, which is located in **<SP_HOME>/lib** directory.
  4. Restart the server.
+
+#### For WSO2 SP 4.2.0 : 
+ 1. Shutdown  the server.
+2. Download  [**sp-4.2.0-artifacts/siddhi-io-http-1.0.28.jar**](https://github.com/minudika/shared-resources/blob/request-response/sp-4.2.0-artifacts/siddhi-io-http-1.0.28.jar)  from this repository and replace the existing **siddhi-io-http-1.0.28.jar** in **WSO2SP-4.2.0**, which is located in **<SP_HOME>/lib** directory.
+ 3. Restart the server.
 
 ### Syntax
 
@@ -36,7 +41,8 @@ You have to provide a sink.id when defining an http-response source, and there s
 
 For a source, the accepting http status code can be defined using 'http.status.code' parameter as following. The value for this parameter should be in 'N**' format where N is the first number of the status code.
 The default value is **2**** .
-***Eg : If the status code is 404,  it will go to the source with http.status.code='4**'***
+
+***Eg : If the status code is 404,  it will go to the source with http.status.code=4*****
 ```sql
 @source(type='http-response', sink.id='<SINK_ID>', http.status.code='2**',
 @map(...)))
