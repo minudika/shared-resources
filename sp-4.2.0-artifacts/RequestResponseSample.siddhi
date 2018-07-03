@@ -1,30 +1,34 @@
 @App:name("RequestResponseSample")
-
 @App:description('This sample siddhi app demonstrates how to use transport properties along with request sink and response source') 
 
-define stream regStream (payload String, headers String);   
+define stream regStream (alertId String, userId String);   
 
-@sink(type='http-request', publisher.url='http://localhost:8080/company/',
-method='POST', 
-headers='{{headers}}', sink.id='reg-company',
-@map(type='json', @payload('{{payload}}')))
-define stream requestStream (payload String, headers String);
+@sink(type='http-request', publisher.url='http://localhost:8050/alertservice/alert',
+method='POST',
+chunk.disabled='true', 
+ sink.id='reg-company',
+@map(type='json', @payload("""{"alertId":"{{alertId}}","userId":"{{userId}}"}""")))
+define stream requestStream (alertId String, userId String);
 
+-- source to receive successful responses (which have 2xx status codes)
 @source(type='http-response' , sink.id='reg-company', http.status.code='2**',
-@map(type='text', regex.A='((.|\n)*)', @attributes(fileName='A[1]'))) 
-define stream responseStream2xx(fileName string);
+@map(type='json', enclosing.element='$.event', @attributes(sendEmail='sendEmail', attachmentAvailable = 'attachmentAvailable', fileName='fileName', amount = 'amount'))) 
+define stream responseStream(sendEmail bool, attachmentAvailable bool, fileName string, amount string);
 
+-- source to receive the responses with 4xx status codes
 @source(type='http-response' , sink.id='reg-company', http.status.code='4**' ,
 @map(type='text', regex.A='((.|\n)*)', @attributes(message='A[1]')))  
 define stream responseStream4xx(message string);
 
 @sink(type='log') 
-define stream logStream(fileName string);
+define stream logStream(sendEmail bool, attachmentAvailable bool, fileName string, amount string);
 
 from regStream
-select payload, headers
+select alertId, userId
 insert into requestStream;
 
-from responseStream2xx
+from responseStream
 select *
 insert into logStream;
+
+
