@@ -1,24 +1,30 @@
 @App:name("RequestResponseSample")
 
-define stream regStream (payload String, headers String);
+@App:description('This sample siddhi app demonstrates how to use transport properties along with request sink and response source') 
+
+define stream regStream (payload String, headers String);   
 
 @sink(type='http-request', publisher.url='http://localhost:8080/company/',
-method='POST', connection.timout='1000', 
+method='POST', 
 headers='{{headers}}', sink.id='reg-company',
 @map(type='json', @payload('{{payload}}')))
 define stream requestStream (payload String, headers String);
 
-@source(type='http-response' , sink.id='reg-company',
-@map(type='json')) 
-define stream responseStream(name string, id int);
+@source(type='http-response' , sink.id='reg-company', http.status.code='2**',
+@map(type='text', regex.A='((.|\n)*)', @attributes(fileName='A[1]'))) 
+define stream responseStream2xx(fileName string);
+
+@source(type='http-response' , sink.id='reg-company', http.status.code='4**' ,
+@map(type='text', regex.A='((.|\n)*)', @attributes(message='A[1]')))  
+define stream responseStream4xx(message string);
 
 @sink(type='log') 
-define stream logStream(name string, id int);
+define stream logStream(fileName string);
 
 from regStream
 select payload, headers
 insert into requestStream;
 
-from responseStream
+from responseStream2xx
 select *
 insert into logStream;
