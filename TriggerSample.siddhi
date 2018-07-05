@@ -1,0 +1,20 @@
+@App:name("TriggerSample")
+
+@Async(buffer.size='256', workers='2', batch.size.max='5')
+define stream RecordStream(query String, ALERT_ID string, USER_ID int, TEMPLATE string, USER_NAME string, USER_EMAIL string);
+
+@sink(type='log')
+define stream LogStream(alertId string, userId int, userName string, template string, userEmail string);
+
+define trigger dbTrigger at every 15 sec;
+
+from dbTrigger
+select "select ALERT_TBL.ALERT_ID, MAPPER_TBL.USER_ID, ALERT_TBL.TEMPLATE, USER_TBL.USER_NAME, USER_TBL.USER_EMAIL from ALERT_TBL join MAPPER_TBL on ALERT_TBL.ALERT_ID = MAPPER_TBL.ALERT_ID and ALERT_TBL.ALERT_ID = 'alert1' join USER_TBL on MAPPER_TBL.USER_ID = USER_TBL.USER_ID" as query
+insert into SqlQueryStream;
+
+from SqlQueryStream#rdbms:query('BNY_ALERTS', "select ALERT_TBL.ALERT_ID, MAPPER_TBL.USER_ID, ALERT_TBL.TEMPLATE, USER_TBL.USER_NAME, USER_TBL.USER_EMAIL from ALERT_TBL join MAPPER_TBL on ALERT_TBL.ALERT_ID = MAPPER_TBL.ALERT_ID and ALERT_TBL.ALERT_ID = 'alert1' join USER_TBL on MAPPER_TBL.USER_ID = USER_TBL.USER_ID", 'ALERT_ID string, USER_ID int, TEMPLATE string, USER_NAME string, USER_EMAIL string') 
+insert into RecordStream; 
+
+from RecordStream 
+select ALERT_ID as alertId, USER_ID as userId , USER_NAME as userName, TEMPLATE as template, USER_EMAIL as userEmail 
+insert into LogStream; 
