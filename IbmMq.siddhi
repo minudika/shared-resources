@@ -1,0 +1,23 @@
+@App:name('IbmMq')
+
+@App:description('Receive events via JMS provider from an IBM Message queue in JSON format with default mapping and view the output on the console.')
+
+@source(type='jms',
+        factory.initial='com.sun.jndi.fscontext.RefFSContextFactory',
+        provider.url='file:/home/user/binding/',
+        destination='myQueue',
+        connection.factory.type='queue',
+        connection.factory.jndi.name='MyConnectionFactory',
+        connection.username = 'username', 
+        connection.password = 'password', 
+        @map(type='json'))
+define stream SweetProductionStream(name string, amount double);
+
+@sink(type='log')
+define stream LowProductionAlertStream(name string, amount double);
+
+@info(name='EventsPassthroughQuery')
+from SweetProductionStream
+select *
+insert into LowProductionAlertStream;
+
