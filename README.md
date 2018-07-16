@@ -117,8 +117,43 @@ Also, following messages would be shown on the terminal
 11. Download [**org.wso2.carbon.jndi_1.0.5.jar**](https://github.com/minudika/shared-resources/blob/ibmmq-support/lib/plugins/org.wso2.carbon.jndi_1.0.5.jar) and copy it to {WSO2SP-HOME}/wso2/lib/plugins directory.
 12. Re-start the server.
 
+## Example
 
+Following siddhi app will consume JSON messages from an IBM message queue named "myQueue" and converted them to  siddhi-events using JSON mapping.
 
+```sql
+@App:name('IbmMq')
+@App:description('Receive events via JMS provider from an IBM Message queue in JSON format with default mapping and view the output on the console.')
 
+@source(type='jms',
+factory.initial='com.sun.jndi.fscontext.RefFSContextFactory',
+provider.url='file:/home/user/binding/',
+destination='myQueue',
+connection.factory.type='queue',
+connection.factory.jndi.name='MyConnectionFactory',
+connection.username = 'username',
+connection.password = 'password',
+@map(type='json'))
+define stream SweetProductionStream(name string, amount double);
 
+@sink(type='log')
+define stream LowProductionAlertStream(name string, amount double);
+
+@info(name='EventsPassthroughQuery')
+from SweetProductionStream
+select *
+insert into LowProductionAlertStream;
+```
+
+The expected message format is following.
+```json
+{"event":
+	{
+		"name":"chocolate",
+		"amount":123.45
+	}
+}
+```
+
+You can find this sample siddhi app [here](https://github.com/minudika/shared-resources/blob/ibmmq-support/IbmMq.siddhi)
 
