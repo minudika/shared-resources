@@ -1,0 +1,73 @@
+@App:name("AbnormalChangeOfIP")
+@App:description("Description of the plan")
+
+-- Please refer to https://docs.wso2.com/display/SP400/Quick+Start+Guide on getting started with SP editor. 
+
+@sink(type = 'log', @map(type = 'text'))
+@Source(type = 'http-request', source.id='testsource', receiver.url="https://localhost:8280/IS_ANALYTICS_GEOVELOCITY/InputStream", 
+basic.auth.enabled='true', parameters="'ciphers:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256'",--, 'sslEnabledProtocols:TLSv1.1,TLSv1.2'", 
+@map(type='json', @attributes(messageId='trp:messageId', username='$.event.username', loginTime='$.event.loginTime', loginIp = '$.event.loginIp')))
+define stream InputStream (
+    messageId string,
+    username string,
+    loginIp string,
+    loginTime long);
+    
+    
+-- Output stream with risk value of the current login attempt.
+@sink(type = 'log', @map(type = 'text'))
+@sink(type='http-response', source.id='testsource', message.id='{{messageId}}', @map(type='json'))
+define stream OutputStream (
+    messageId string,
+    username string,
+    risk double);
+    
+    
+@store(type='rdbms', datasource='IS_ANALYTICS_DB')
+@primaryKey('username', 'loginIp')
+define table LoginBehaviourTable (
+    username string,
+    loginIp string,
+    loginTime long
+);
+
+-- OverallAuthTableTable for all the authentication data.
+@store(type='rdbms', datasource='IS_ANALYTICS_DB')
+-- ,'field.length=serviceProvider:100, identityProvider:100, userStoreDomain:50, region:45')
+@primaryKey('meta_tenantId', 'eventId', 'eventType')
+define table OverallAuthTable (
+    meta_tenantId int,
+    contextId string,
+    eventId string,
+    eventType string,
+    username string,
+    localUsername string,
+    userStoreDomain string,
+    tenantDomain string,
+    remoteIp string,
+    region string,
+    inboundAuthType string,
+    serviceProvider string,
+    rememberMeEnabled bool,
+    forceAuthEnabled bool,
+    passiveAuthEnabled bool,
+    rolesCommaSeparated string,
+    authenticationStep string,
+    identityProvider string,
+    authenticationSuccess bool,
+    authStepSuccess bool,
+    stepAuthenticator string,
+    isFirstLogin bool,
+    identityProviderType string,
+    utcTime string,
+    timestamp long
+);
+
+from InputStream#rdbms:query('IS_ANALYTICS_DB', 'select count(*) from OverallAuthTable where (?-timestamp)<600000 and username=? and remoteIp=? and eventType=?', loginTime, username, loginIp, 'overall', 'LoginAttemptCount long')
+select messageId, username, LoginAttemptCount
+insert into LoginAttemptCountStream;
+
+from LoginAttemptCountStream#log('LoginAttemptCountStream')
+select messageId, username, ifThenElse(LoginAttemptCount>=3, 0.0, ifThenElse(LoginAttemptCount>=2, 0.5, ifThenElse(LoginAttemptCount>=1, 0.8, 1.0))) as risk
+insert into OutputStream;
+
