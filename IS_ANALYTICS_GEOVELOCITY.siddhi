@@ -4,7 +4,7 @@
 -- Input stream with the Geovelocity data of usernaem,login ip and login time.
 @sink(type = 'log', @map(type = 'text'))
 @Source(type = 'http-request', source.id='testsource', receiver.url="https://localhost:8280/IS_ANALYTICS_GEOVELOCITY/InputStream", 
-basic.auth.enabled='true', parameters="'ciphers:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256', 'sslEnabledProtocols:TLSv1.1,TLSv1.2'", 
+basic.auth.enabled='true', --parameters="'ciphers:TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256', 'sslEnabledProtocols:TLSv1.1,TLSv1.2'", 
 @map(type='json', @attributes(messageId='trp:messageId', username='$.event.username', loginTime='$.event.loginTime', loginIp = '$.event.loginIp')))
 define stream InputStream (
     messageId string,
@@ -20,21 +20,21 @@ define stream OutputStream (
     username string,
     risk double);
 
--- GEOVELOCITY_INFO database table to store updated login data of a user.
+-- GEOVELOCITY_INFO_TABLE database table to store updated login data of a user.
 @primaryKey('username')
 @store(type='rdbms', datasource='IS_ANALYTICS_DB')
-define table GEOVELOCITY_INFO(
+define table GEOVELOCITY_INFO_TABLE(
     username string,
     loginTime long,
     loginIp string,
     latitude double,
     longitude double,
-    city string,
-    country string,
+    --city string,
+    --country string,
     authenticationSuccess bool);
 
 -- OverallAuthTableTable for all the authentication data.
-@store(type='rdbms', datasource='IS_ANALYTICS_DB', 'field.length=serviceProvider:100, identityProvider:100, userStoreDomain:50, region:45')
+@store(type='rdbms', datasource='IS_ANALYTICS_DB') -- 'field.length=serviceProvider:100, identityProvider:100, userStoreDomain:50, region:45')
 @primaryKey('meta_tenantId', 'eventId', 'eventType')
 define table OverallAuthTable (
     meta_tenantId int,
@@ -67,7 +67,7 @@ define table OverallAuthTable (
 -- TravelRestrictedAreas database table to store restricted location combinations.
 @primaryKey('Id')
 @index('Id')
-@store(type='rdbms', datasource='IS_ANALYTICS_DB', 'field.length=username:20, loginTime:20, loginIp:20, city:20')
+@store(type='rdbms', datasource='IS_ANALYTICS_DB')--, 'field.length=username:20, loginTime:20, loginIp:20, city:20')
 define table TRAVELRESTRICTEDAREAS(
     Id int,
     currentLocation string,
@@ -94,14 +94,14 @@ select messageId,
     loginTime,
     loginIp,
     latitude,
-    longitude,
-    geo:findCityFromIP(loginIp) as city,
-    geo:findCountryFromIP(loginIp) as country
+    longitude
+    --geo:findCityFromIP(loginIp) as city,
+    --geo:findCountryFromIP(loginIp) as country
 insert into FinalLoginDetailsStream;
 
-from FinalLoginDetailsStream#log('**FinalLoginDetailsStream')
-select * 
-insert into tmpStream1;
+-- from FinalLoginDetailsStream#log('**FinalLoginDetailsStream')
+-- select * 
+-- insert into tmpStream1;
 
 -- Update GEO_VELOCITY_INFO database table with the last successful login details.
 from FinalLoginDetailsStream#window.length(1) join OverallAuthTable
@@ -109,39 +109,39 @@ on FinalLoginDetailsStream.username == OverallAuthTable.username and OverallAuth
 select FinalLoginDetailsStream.username as username,
     max(OverallAuthTable.timestamp) as loginTime,
     true as authenticationSuccess
-update GEOVELOCITY_INFO
-    set GEOVELOCITY_INFO.loginTime=loginTime,GEOVELOCITY_INFO.authenticationSuccess=authenticationSuccess
-    on GEOVELOCITY_INFO.username == username;
+update GEOVELOCITY_INFO_TABLE
+    set GEOVELOCITY_INFO_TABLE.loginTime=loginTime,GEOVELOCITY_INFO_TABLE.authenticationSuccess=authenticationSuccess
+    on GEOVELOCITY_INFO_TABLE.username == username;
 
 -- Get login details of last successful login and the current login attempt.
-from FinalLoginDetailsStream#log('FinalLoginDetailsStream1')#window.length(1) join GEOVELOCITY_INFO
-on  FinalLoginDetailsStream.username==GEOVELOCITY_INFO.username and GEOVELOCITY_INFO.authenticationSuccess == true
+from FinalLoginDetailsStream#log('FinalLoginDetailsStream1')#window.length(1) join GEOVELOCITY_INFO_TABLE
+on  FinalLoginDetailsStream.username==GEOVELOCITY_INFO_TABLE.username and GEOVELOCITY_INFO_TABLE.authenticationSuccess == true
 select FinalLoginDetailsStream.messageId as messageId,
     FinalLoginDetailsStream.username as username,
     FinalLoginDetailsStream.loginTime as currentLoginTime,
-    GEOVELOCITY_INFO.loginTime as lastLoginTime,
-    GEOVELOCITY_INFO.city as lastLoginCity,
-    FinalLoginDetailsStream.city as currentLoginCity,
-    GEOVELOCITY_INFO.country as lastLoginCountry,
-    FinalLoginDetailsStream.country as currentLoginCountry,
-    geo:distance(FinalLoginDetailsStream.latitude, FinalLoginDetailsStream.longitude, GEOVELOCITY_INFO.latitude,GEOVELOCITY_INFO.longitude) as distance,
-    timeGapFn(FinalLoginDetailsStream.loginTime, GEOVELOCITY_INFO.loginTime) as timeGap
+    GEOVELOCITY_INFO_TABLE.loginTime as lastLoginTime,
+    --GEOVELOCITY_INFO_TABLE.city as lastLoginCity,
+    --FinalLoginDetailsStream.city as currentLoginCity,
+    --GEOVELOCITY_INFO_TABLE.country as lastLoginCountry,
+    --FinalLoginDetailsStream.country as currentLoginCountry,
+    geo:distance(FinalLoginDetailsStream.latitude, FinalLoginDetailsStream.longitude, GEOVELOCITY_INFO_TABLE.latitude,GEOVELOCITY_INFO_TABLE.longitude) as distance,
+    timeGapFn(FinalLoginDetailsStream.loginTime, GEOVELOCITY_INFO_TABLE.loginTime) as timeGap
 insert into GeoVelocityStream;
 
-from GeoVelocityStream#log('***GeoVelocityStream')
-select *
-insert into tmpStream3;
+-- from GeoVelocityStream#log('***GeoVelocityStream')
+-- select *
+-- insert into tmpStream3;
 
 -- Login Details for Initial login.
-from FinalLoginDetailsStream#log('FinalLoginDetailsStream2')#window.length(1)[GEOVELOCITY_INFO.username==username in GEOVELOCITY_INFO]
+from FinalLoginDetailsStream#log('FinalLoginDetailsStream2')#window.length(1)[GEOVELOCITY_INFO_TABLE.username==username in GEOVELOCITY_INFO_TABLE]
 select messageId,
     username,
     loginTime as currentLoginTime,
     loginTime as lastLoginTime,
-    city as lastLoginCity,
-    city as currentLoginCity,
-    country as lastLoginCountry,
-    country as currentLoginCountry,
+    --city as lastLoginCity,
+    --city as currentLoginCity,
+    --country as lastLoginCountry,
+    --country as currentLoginCountry,
     0.0 as distance,
     1 as timeGap
 insert into GeoVelocityStream;
@@ -151,8 +151,8 @@ from GeoVelocityStream#log('GeoVelocityStream')
 select messageId,
     username,
     timeGap,
-    geovelocity:loginBehaviourBasedRisk(username, currentLoginCity, currentLoginTime) as loginBehaviourBasedRisk,
-    geovelocity:restrictedAreaBasedRisk(currentLoginCity, lastLoginCity, currentLoginCountry, lastLoginCountry) as forbiddenAreaBasedLoginRisk,
+    --geovelocity:loginBehaviourBasedRisk(username, currentLoginCity, currentLoginTime) as loginBehaviourBasedRisk,
+    --geovelocity:restrictedAreaBasedRisk(currentLoginCity, lastLoginCity, currentLoginCountry, lastLoginCountry) as forbiddenAreaBasedLoginRisk,
     ifThenElse(distance==0,0.0,(distance/timeGap))  as velocity
 insert into RiskValueStream;
 
@@ -165,10 +165,11 @@ insert into tmpStream2;
 from RiskValueStream#log('RiskValueStream')#window.length(1) 
 select messageId,
     username,
-    ifThenElse(velocity==0,0.0,ifThenElse(velocity>0.025, 1.0 , ifThenElse(forbiddenAreaBasedLoginRisk==1,0.5,ifThenElse(loginBehaviourBasedRisk>0.4, 0.3, 0.0)))) as risk
+    --ifThenElse(velocity==0,0.0,ifThenElse(velocity>0.025, 1.0 , ifThenElse(forbiddenAreaBasedLoginRisk==1,0.5,ifThenElse(loginBehaviourBasedRisk>0.4, 0.3, 0.0)))) as risk
+     ifThenElse(velocity==0,0.0, ifThenElse(velocity<0.5, 0.5, 1.0)) as risk
 insert into OutputStream;
 
--- update GEOVELOCITY_INFO database.
+-- update GEOVELOCITY_INFO_TABLE database.
 from FinalLoginDetailsStream
 select
     username,
@@ -176,16 +177,16 @@ select
     loginIp,
     latitude,
     longitude,
-    city,
-    country,
+    --city,
+    --country,
     false as authenticationSuccess
-update or insert into GEOVELOCITY_INFO
-set GEOVELOCITY_INFO.username = username,
-    GEOVELOCITY_INFO.loginTime = loginTime,
-    GEOVELOCITY_INFO.loginIp=loginIp,
-    GEOVELOCITY_INFO.latitude=latitude,
-    GEOVELOCITY_INFO.longitude=longitude,
-     GEOVELOCITY_INFO.city=city,
-    GEOVELOCITY_INFO.country=country,
-    GEOVELOCITY_INFO.authenticationSuccess=authenticationSuccess
-on GEOVELOCITY_INFO.username == username;
+update or insert into GEOVELOCITY_INFO_TABLE
+set GEOVELOCITY_INFO_TABLE.username = username,
+    GEOVELOCITY_INFO_TABLE.loginTime = loginTime,
+    GEOVELOCITY_INFO_TABLE.loginIp=loginIp,
+    GEOVELOCITY_INFO_TABLE.latitude=latitude,
+    GEOVELOCITY_INFO_TABLE.longitude=longitude,
+    --GEOVELOCITY_INFO_TABLE.city=city,
+    --GEOVELOCITY_INFO_TABLE.country=country,
+    GEOVELOCITY_INFO_TABLE.authenticationSuccess=authenticationSuccess
+on GEOVELOCITY_INFO_TABLE.username == username;

@@ -63,13 +63,15 @@ define table OverallAuthTable (
     timestamp long
 );
 
-from InputStream#rdbms:query('IS_ANALYTICS_DB', 'select hour(FROM_UNIXTIME(?)) as loginHour, hour(FROM_UNIXTIME(min(timestamp)/1000)) as minLoginTime, hour(FROM_UNIXTIME(max(timestamp)/1000)) as maxLoginTime from OverallAuthTable where DAYOFWEEK(FROM_UNIXTIME(?/1000)) = DAYOFWEEK(FROM_UNIXTIME(timestamp/1000))  and (timestamp > ? - 86400000) and authStepSuccess = 1 and eventType=?;', loginTime, loginTime, loginTime, 'overall', 'loginHour long, minLoginTime long, maxLoginTime long' )
-select username, loginIp, time:extract(loginTime, 'DAY') as loginday, loginHour, minLoginTime, maxLoginTime, messageId
+@sink(type='log')
+define stream dayFilterStream(username string, loginIp string, loginHour long, minLoginTime long, maxLoginTime long, messageId string);
+
+from InputStream#rdbms:query('IS_ANALYTICS_DB', 'select hour(FROM_UNIXTIME(?/1000)) as loginHour, hour(FROM_UNIXTIME(min(timestamp)/1000)) as minLoginTime, hour(FROM_UNIXTIME(max(timestamp)/1000)) as maxLoginTime from OverallAuthTable where DAYOFWEEK(FROM_UNIXTIME(?/1000)) = DAYOFWEEK(FROM_UNIXTIME(timestamp/1000))  and (timestamp > UNIX_TIMESTAMP(subdate(current_date, 28))) and authStepSuccess = 1 and eventType=?;', loginTime, loginTime, 'overall', 'loginHour long, minLoginTime long, maxLoginTime long' )
+select username, loginIp, loginHour, minLoginTime, maxLoginTime, messageId
 insert into dayFilterStream;
 
-
 from dayFilterStream
-select messageId, username, ifThenElse(minLoginTime<loginHour and loginHour<maxLoginTime, 0.0, ifThenElse(minLoginTime-2<loginHour and loginHour<maxLoginTime+2, 0.5, ifThenElse(minLoginTime-5<loginHour and loginHour<maxLoginTime+5, 0.8, 1.0))) as risk
+select messageId, username, ifThenElse(minLoginTime<=loginHour and loginHour<=maxLoginTime, 0.0, ifThenElse(minLoginTime-2<loginHour and loginHour<maxLoginTime+2, 0.5, 1.0)) as risk
 insert into OutputStream;
 
 

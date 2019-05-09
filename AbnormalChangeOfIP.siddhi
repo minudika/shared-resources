@@ -63,11 +63,11 @@ define table OverallAuthTable (
     timestamp long
 );
 
-from InputStream#rdbms:query('IS_ANALYTICS_DB', 'select count(*) from OverallAuthTable where (?-timestamp)<600000 and username=? and remoteIp=? and eventType=?', loginTime, username, loginIp, 'overall', 'LoginAttemptCount long')
+from InputStream#rdbms:query('IS_ANALYTICS_DB', 'select count(*) from OverallAuthTable where (?-timestamp)<120000 and username=? and remoteIp=? and eventType=?', loginTime, username, loginIp, 'overall', 'LoginAttemptCount long')
 select messageId, username, LoginAttemptCount
 insert into LoginAttemptCountStream;
 
 from LoginAttemptCountStream#log('LoginAttemptCountStream')
-select messageId, username, ifThenElse(LoginAttemptCount>=3, 0.0, ifThenElse(LoginAttemptCount>=2, 0.5, ifThenElse(LoginAttemptCount>=1, 0.8, 1.0))) as risk
+select messageId, username, ifThenElse(LoginAttemptCount>=3, 0.0, ifThenElse(LoginAttemptCount>=2, 0.5, 1.0)) as risk
 insert into OutputStream;
 
